@@ -217,6 +217,10 @@ class WebhookHandler(webapp2.RequestHandler):
 
         word_index = 0
         for wordz in wordList:
+
+            try: nextWord = wordList[word_index + 1]
+            except: nextWord = ''
+
             if ":" in wordz:
                 if wordz[0].isdigit() and wordz[1].isdigit() and wordz[2] == ':':
                     hourz = int(wordz[:2])
@@ -227,30 +231,50 @@ class WebhookHandler(webapp2.RequestHandler):
                     hourz_og = hourz
                     minutez = int(wordz[-2:])
                 else: break
-                if fullname == 'Matt Latta':
-                    if bool(time.localtime().tm_isdst):
-                        hourz += 2
-                    else: hourz += 1
-
-                try: nextWord = wordList[word_index + 1]
-                except: nextWord = ''
 
                 if nextWord == 'AM':
                     daytimez = 'AM'
                 elif nextWord == 'PM':
                     daytimez = 'PM'
-                else:
+
+                if fullname == 'Matt Latta':
+                    if bool(time.localtime().tm_isdst):
+                        hourz += 2
+                    else: hourz += 1
                     if hourz > 12:
                         hourz -= 12
-                        daytimez = 'PM'
-                    else: daytimez = 'AM'
+                        if daytimez == 'AM': daytimez = 'PM'
+                        elif daytimez == 'PM': daytimez = 'AM'
+
+                if hourz > 12:
+                    hourz -= 12
+                    daytimez = 'PM'
+                else: daytimez = 'AM'
+
+                if minutez == 0: minutez = '00'
 
                 timez_string = str(hourz) + ':' + str(minutez) + ' ' + daytimez
                 if fullname == 'Matt Latta':
                     quoteReply(timez_string + ' in CT')
-                if hourz_og > 12:
+                elif hourz_og > 12:
                     quoteReply(timez_string + ' for non-jarheads')
                 
+            if wordz.isdigit() and (nextWord == 'AM' or nextWord == 'PM'):
+                daytimez = nextWord
+                hourz = int(wordz)
+                if fullname == 'Matt Latta':
+                    if bool(time.localtime().tm_isdst):
+                        hourz += 2
+                    else: hourz += 1
+
+                    if hourz > 12:
+                        hourz -= 12
+                        if daytimez == 'AM': daytimez = 'PM'
+                        elif daytimez == 'PM': daytimez = 'AM'
+
+                    timez_string = str(hourz) + ' ' + daytimez
+                    quoteReply(timez_string + ' in CT')
+
             word_index += 1
 
         if text.startswith('/'):
