@@ -215,6 +215,43 @@ class WebhookHandler(webapp2.RequestHandler):
             #for timez in times:
                 #if lastname == 'Latta':
 
+        word_index = 0
+        for wordz in wordList:
+            if ":" in wordz:
+                if wordz[0].isdigit() and wordz[1].isdigit() and wordz[2] == ':':
+                    hourz = int(wordz[:2])
+                    hourz_og = hourz
+                    minutez = int(wordz[-2:])
+                elif wordz[0].isdigit() and wordz[1] == ':':
+                    hourz = int(wordz[0])
+                    hourz_og = hourz
+                    minutez = int(wordz[-2:])
+                else: break
+                if fullname == 'Matt Latta':
+                    if bool(time.localtime().tm_isdst):
+                        hourz += 2
+                    else: hourz += 1
+
+                try: nextWord = wordList[word_index + 1]
+                except: nextWord = ''
+
+                if nextWord == 'AM':
+                    daytimez = 'AM'
+                elif nextWord == 'PM':
+                    daytimez = 'PM'
+                else:
+                    if hourz > 12:
+                        hourz -= 12
+                        daytimez = 'PM'
+                    else: daytimez = 'AM'
+
+                timez_string = str(hourz) + ':' + str(minutez) + ' ' + daytimez
+                if fullname == 'Matt Latta':
+                    quoteReply(timez_string + ' in CT')
+                if hourz_og > 12:
+                    quoteReply(timez_string + ' for non-jarheads')
+                
+            word_index += 1
 
         if text.startswith('/'):
             """
