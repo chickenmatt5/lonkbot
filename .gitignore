@@ -64,3 +64,6 @@ deploy.*
 
 *.yaml
 *.ico
+
+*.bat
+*.json

@@ -131,9 +131,13 @@ class WebhookHandler(webapp2.RequestHandler):
         date = message.get('date')
         text = message.get('text')
         fr = message.get('from')
-        firstname = fr.get('first_name')
-        lastname = fr.get('last_name')
-        fullname = firstname + " " + lastname
+        try: firstname = fr.get('first_name')
+        except: firstname = ''
+        try: lastname = fr.get('last_name')
+        except: lastname = ''
+        try: username = fr.get('username')
+        except: username = ''
+        fullname = str(firstname) + " " + str(lastname)
         chat = message['chat']
         chat_id = chat['id']
 
@@ -203,17 +207,16 @@ class WebhookHandler(webapp2.RequestHandler):
             logging.info(resp)
         """
 
+        text = text.strip(',') # Remove punctuation
+        text = text.strip('?')
+        text = text.strip('!')
+        text = text.strip('.')
         wordList = text.split()
-        for wordz in wordList:
+        for wordz in wordList: # subreddit parser
             if wordz.startswith('/r/'):
                 if "/r/fightsub" in wordList:
                     reply("We don't talk about that.")
                 else: reply('http://www.reddit.com' + wordz)
-
-        #times = fnmatch.filter(wordList, '??:??')
-        #if times != []:
-            #for timez in times:
-                #if lastname == 'Latta':
 
         word_index = 0
         for wordz in wordList:
@@ -221,60 +224,90 @@ class WebhookHandler(webapp2.RequestHandler):
             try: nextWord = wordList[word_index + 1]
             except: nextWord = ''
 
-            if ":" in wordz:
+            # hh:mm (AM/PM) format
+            #if ":" in wordz and (wordz.strip(':')).isdigit():
+            if ":" in wordz and not "M" in wordz:
                 if wordz[0].isdigit() and wordz[1].isdigit() and wordz[2] == ':':
                     hourz = int(wordz[:2])
                     hourz_og = hourz
-                    minutez = int(wordz[-2:])
+                    try: minutez = int(wordz[-2:])
+                    except: minutez = 0
                 elif wordz[0].isdigit() and wordz[1] == ':':
                     hourz = int(wordz[0])
                     hourz_og = hourz
-                    minutez = int(wordz[-2:])
+                    try: minutez = int(wordz[-2:])
+                    except: minutez = 0
                 else: break
 
                 if nextWord == 'AM':
                     daytimez = 'AM'
                 elif nextWord == 'PM':
                     daytimez = 'PM'
+                else: daytimez = 'PM' # Assume if none given, talking about PM
 
-                if fullname == 'Matt Latta':
-                    if bool(time.localtime().tm_isdst):
-                        hourz += 2
-                    else: hourz += 1
+                if hourz > 12:
+                    hourz -= 12
+                    daytimez = 'PM'
+                #else: daytimez = 'AM'
+
+                if username == 'LattMatt':
+                    if bool(time.localtime().tm_isdst): hour_inc = 2
+                    else: hour_inc = 1
+                    hourz += hour_inc
+
                     if hourz > 12:
                         hourz -= 12
-                        if daytimez == 'AM': daytimez = 'PM'
-                        elif daytimez == 'PM': daytimez = 'AM'
+                    if int(hourz_og) == int(12 - hour_inc):
+                        daytimez_temp = daytimez
+                        if daytimez_temp == 'AM': daytimez = 'PM'
+                        elif daytimez_temp == 'PM': daytimez = 'AM'
+
+                if minutez <= 9 : minutez = '0' + str(minutez)
+
+                timez_string = str(hourz) + ':' + str(minutez) + ' ' + daytimez
+                if username == 'LattMatt':
+                    if int(minutez) > 59: break
+                    else: quoteReply(timez_string + ' in CT')
+                elif hourz_og > 12:
+                    if int(minutez) > 59: break
+                    else: quoteReply(timez_string + ' for non-jarheads')
+                
+            # hh AM/PM format
+            if wordz.isdigit() and (nextWord == 'AM' or nextWord == 'PM') and (len(wordz) <= 2):
+                daytimez = nextWord
+                hourz = int(wordz)
+                hourz_og = hourz
+                if username == 'LattMatt':
+                    if bool(time.localtime().tm_isdst): hour_inc = 2
+                    else: hour_inc = 1
+                    hourz += hour_inc
+
+                    if hourz > 12:
+                        hourz -= 12
+                    if hourz_og == (12 - hour_inc):
+                        daytimez_temp = daytimez
+                        if daytimez_temp == 'AM': daytimez = 'PM'
+                        elif daytimez_temp == 'PM': daytimez = 'AM'
+
+                    timez_string = str(hourz) + ' ' + daytimez
+                    quoteReply(timez_string + ' in CT')
+
+            # Non-colon military time conversion
+            if wordz.isdigit() and len(wordz) == 4 and int(wordz) < 2360:
+                hourz = int(wordz[:2])
+                minutez = int(wordz[-2:])
 
                 if hourz > 12:
                     hourz -= 12
                     daytimez = 'PM'
                 else: daytimez = 'AM'
 
-                if minutez == 0: minutez = '00'
+                if minutez <= 9 : minutez = '0' + str(minutez)
 
                 timez_string = str(hourz) + ':' + str(minutez) + ' ' + daytimez
-                if fullname == 'Matt Latta':
-                    quoteReply(timez_string + ' in CT')
-                elif hourz_og > 12:
-                    quoteReply(timez_string + ' for non-jarheads')
-                
-            if wordz.isdigit() and (nextWord == 'AM' or nextWord == 'PM'):
-                daytimez = nextWord
-                hourz = int(wordz)
-                if fullname == 'Matt Latta':
-                    if bool(time.localtime().tm_isdst):
-                        hourz += 2
-                    else: hourz += 1
-
-                    if hourz > 12:
-                        hourz -= 12
-                        if daytimez == 'AM': daytimez = 'PM'
-                        elif daytimez == 'PM': daytimez = 'AM'
-
-                    timez_string = str(hourz) + ' ' + daytimez
-                    quoteReply(timez_string + ' in CT')
-
+                if int(minutez) > 59: break
+                else: quoteReply(timez_string + ' for non-jarheads')
+            
             word_index += 1
 
         if text.startswith('/'):
@@ -297,7 +330,7 @@ class WebhookHandler(webapp2.RequestHandler):
 
         # CUSTOMIZE FROM HERE
 
-        if 'lonk' in text.lower() and ('w' in wordList or 'won' in text.lower()):
+        if 'lonk' in text.lower() and ('w' in wordList or 'won' in wordList):
             if 'stomp' in text.lower() or 'stomped' in text.lower() or 's' in wordList:
                 stuff = {'value1': 'Win', 'value2': 'Yes', 'value3': fullname}
                 responses = ['ggez','Good job bois','choo choo','holy whiskers you go sisters']
@@ -315,7 +348,7 @@ class WebhookHandler(webapp2.RequestHandler):
             req.add_header('Content-Type', 'application/json')
             urllib2.urlopen(req, json.dumps(stuff)).read()
 
-        if 'lonk' in text.lower() and ('l' in wordList or 'lost' in text.lower()):
+        if 'lonk' in text.lower() and ('l' in wordList or 'lost' in wordList):
             if 'stomp' in text.lower() or 'stomped' in text.lower() or 's' in wordList:
                 stuff = {'value1': 'Loss', 'value2': 'Yes', 'value3': fullname}
                 responses = ['ROUGH ROLL','get rekt','gg close','Was that a PRO Genji?']
@@ -347,7 +380,9 @@ class WebhookHandler(webapp2.RequestHandler):
             
         #if 'lonk' in text.lower():
         #    stickerReply('BQADAQADYQADyVB8ASPbHzvQy__JAg')
-        if 'link' in text.lower():
+        if 'link' in text and len(wordList) < 15:
+            quoteReply('Did you mean "lonk"?')
+        if 'Link' in text and len(wordList) < 15:
             quoteReply('Did you mean "Lonk"?')
         if 'john cena' in text.lower():
             quoteReply("I sexually Identify as John Cena. Ever since I was a boy I dreamed of defending my WWE championship at WWE SUPERSLAM. People say to me that a person being John Cena is Impossible and I'm fucking retarded but I don't care, You Can't See Me. I'm having Vince McMahon inject me with Hustle, Loyalty, and Respect. From now on I want you guys to call me 'Champ' and respect my right to Five Knuckle Shuffle and Never Give Up. If you can't accept me you're a cenaphobe and need to check your championship privilege. Thank you for being so understanding.")
@@ -373,6 +408,8 @@ class WebhookHandler(webapp2.RequestHandler):
             quoteReply('song name is Sandstorm by Darude\nhttps://www.youtube.com/watch?v=dQw4w9WgXcQ')
         if 'do it' in text.lower() and len(text) < 15:
             stickerReply('BQADAQADXgUAAiBWmALK7Xfe8O0gKAI')
+        if text.count('hashtag') > 1:
+            quoteReply('hashtag shut the fuck up')
 
         if text.startswith("Roll "):
             multiplier = 1
